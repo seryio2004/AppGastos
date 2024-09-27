@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ratas</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        label, input, button, .checkbox-group {
+            display: block;
+            margin-bottom: 10px;
+            width: 100%;
+        }
+        input[type="number"], input[type="date"] {
+            padding: 8px;
+            font-size: 16px;
+            width: 100%;
+        }
+        button {
+            background-color: #28a745;
+            color: white;
+            padding: 10px;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #e9ecef;
+            border-radius: 5px;
+        }
+        table {
+            width: 100%;
+            margin-top: 20px;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Dividir Gastos entre 3 Personas</h1>
+    <div class="container">
+        <label for="fechaGasto">Fecha del Gasto:</label>
+        <input type="date" id="fechaGasto">
+
+        <label for="gastoTotal">Total del Gasto:</label>
+        <input type="number" id="gastoTotal" placeholder="Introduce el total del gasto" min="0" step="0.01">
+
+        <label for="pagador">¿Quién pagó?</label>
+        <select id="pagador">
+            <option value="Sk">Sk</option>
+            <option value="Garcia">Garcia</option>
+            <option value="Morata">Morata</option>
+        </select>
+
+        <label for="participantes">¿Quién participó en el gasto? (Selecciona uno o más)</label>
+        <div class="checkbox-group">
+            <label><input type="checkbox" id="checkSk" value="Sk"> Sk</label>
+            <label><input type="checkbox" id="checkGarcia" value="Garcia"> Garcia</label>
+            <label><input type="checkbox" id="checkMorata" value="Morata"> Morata</label>
+        </div>
+
+        <button onclick="agregarGasto()">Añadir Gasto</button>
+
+        <table id="tablaGastos">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Participantes</th>
+                    <th>Total</th>
+                    <th>Pagó</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Aquí se añadirán los gastos dinámicamente -->
+            </tbody>
+        </table>
+
+        <button onclick="calcularDeudas()">Calcular Deudas</button>
+
+        <div class="result" id="resultado"></div>
+    </div>
+
+    <script>
+        let gastos = [];
+
+        function agregarGasto() {
+            const fecha = document.getElementById('fechaGasto').value;
+            const totalGasto = parseFloat(document.getElementById('gastoTotal').value) || 0;
+            const pagador = document.getElementById('pagador').value;
+
+            // Verificar quiénes participaron
+            const participantes = [];
+            if (document.getElementById('checkSk').checked) participantes.push('Sk');
+            if (document.getElementById('checkGarcia').checked) participantes.push('Garcia');
+            if (document.getElementById('checkMorata').checked) participantes.push('Morata');
+
+            // Validaciones
+            if (!fecha) {
+                alert("Por favor, selecciona una fecha.");
+                return;
+            }
+
+            if (totalGasto <= 0) {
+                alert("Por favor, introduce un gasto válido.");
+                return;
+            }
+
+            if (participantes.length === 0) {
+                alert("Por favor, selecciona al menos una persona que participó.");
+                return;
+            }
+
+            // Añadir el gasto a la lista de gastos
+            gastos.push({ fecha, participantes, totalGasto, pagador });
+
+            // Limpiar los campos después de añadir el gasto
+            document.getElementById('gastoTotal').value = '';
+            document.getElementById('fechaGasto').value = '';
+            document.getElementById('checkSk').checked = false;
+            document.getElementById('checkGarcia').checked = false;
+            document.getElementById('checkMorata').checked = false;
+
+            // Actualizar la tabla de gastos
+            actualizarTabla();
+        }
+
+        function actualizarTabla() {
+            const tbody = document.querySelector('#tablaGastos tbody');
+            tbody.innerHTML = ''; // Limpiar la tabla antes de volver a cargarla
+
+            gastos.forEach(gasto => {
+                const fila = document.createElement('tr');
+                fila.innerHTML = `
+                    <td>${gasto.fecha}</td>
+                    <td>${gasto.participantes.join(', ')}</td>
+                    <td>€${gasto.totalGasto.toFixed(2)}</td>
+                    <td>${gasto.pagador}</td>
+                `;
+                tbody.appendChild(fila);
+            });
+        }
+
+        function calcularDeudas() {
+            const saldos = {
+                Sk: 0,
+                Garcia: 0,
+                Morata: 0
+            };
+
+            // Calcular el total que cada persona ha pagado y cuánto deberían haber pagado
+            gastos.forEach(gasto => {
+                const numParticipantes = gasto.participantes.length;
+                const montoPorPersona = gasto.totalGasto / numParticipantes;
+
+                // Aumentar el saldo del pagador
+                saldos[gasto.pagador] += gasto.totalGasto;
+
+                // Restar el monto por la participación de cada persona
+                gasto.participantes.forEach(participante => {
+                    saldos[participante] -= montoPorPersona;
+                });
+            });
+
+            // Mostrar resultados
+            mostrarResultados(saldos);
+        }
+
+        function mostrarResultados(saldos) {
+            const resultadoDiv = document.getElementById('resultado');
+            resultadoDiv.innerHTML = ''; // Limpiar resultados anteriores
+
+            let mensajes = '';
+            const saldosArray = Object.entries(saldos);
+
+            saldosArray.forEach(([persona, saldo]) => {
+                if (saldo > 0) {
+                    mensajes += `<p>${persona} debe recibir €${saldo.toFixed(2)}</p>`;
+                } else if (saldo < 0) {
+                    mensajes += `<p>${persona} debe pagar €${Math.abs(saldo).toFixed(2)}</p>`;
+                } else {
+                    mensajes += `<p>${persona} está a saldo cero.</p>`;
+                }
+            });
+
+            resultadoDiv.innerHTML = mensajes || '<p>Todos han pagado equitativamente, no se deben dinero.</p>';
+        }
+    </script>
+
+</body>
+</html>
+
