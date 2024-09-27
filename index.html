@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ratas</title>
+    <title>Dividir Gastos entre 3 Personas</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -27,7 +27,7 @@
             margin-bottom: 10px;
             width: 100%;
         }
-        input[type="number"], input[type="date"] {
+        input[type="number"], input[type="text"], input[type="date"] {
             padding: 8px;
             font-size: 16px;
             width: 100%;
@@ -63,7 +63,10 @@
 
     <h1>Dividir Gastos entre 3 Personas</h1>
     <div class="container">
-        <label for="fechaGasto">Fecha del Gasto:</label>
+        <label for="nombreGasto">Nombre del Gasto:</label>
+        <input type="text" id="nombreGasto" placeholder="Introduce el nombre del gasto">
+
+        <label for="fechaGasto">Fecha del Gasto (opcional):</label>
         <input type="date" id="fechaGasto">
 
         <label for="gastoTotal">Total del Gasto:</label>
@@ -88,6 +91,7 @@
         <table id="tablaGastos">
             <thead>
                 <tr>
+                    <th>Nombre del Gasto</th>
                     <th>Fecha</th>
                     <th>Participantes</th>
                     <th>Total</th>
@@ -105,10 +109,47 @@
     </div>
 
     <script>
+        const jsonBinUrl = 'https://api.jsonbin.io/v3/bins'; // URL de la API de JSONBin
+        const secretKey = '$2b$10$TU_CLAVE_SECRETA'; // Cambia esto por tu clave secreta
+
         let gastos = [];
 
+        // Cargar gastos desde JSONBin
+        async function cargarGastos() {
+            try {
+                const response = await fetch(`${jsonBinUrl}/ID_DEL_BIN`, {
+                    method: 'GET',
+                    headers: {
+                        'secret-key': secretKey
+                    }
+                });
+                const data = await response.json();
+                gastos = data.record || []; // Almacena los gastos
+                actualizarTabla(); // Actualiza la tabla con los gastos
+            } catch (error) {
+                console.error('Error al cargar los gastos:', error);
+            }
+        }
+
+        // Guardar gastos en JSONBin
+        async function guardarGastos() {
+            try {
+                await fetch(jsonBinUrl, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'secret-key': secretKey
+                    },
+                    body: JSON.stringify({ gastos })
+                });
+            } catch (error) {
+                console.error('Error al guardar los gastos:', error);
+            }
+        }
+
         function agregarGasto() {
-            const fecha = document.getElementById('fechaGasto').value;
+            const nombreGasto = document.getElementById('nombreGasto').value.trim();
+            const fecha = document.getElementById('fechaGasto').value || "Sin fecha";
             const totalGasto = parseFloat(document.getElementById('gastoTotal').value) || 0;
             const pagador = document.getElementById('pagador').value;
 
@@ -119,8 +160,8 @@
             if (document.getElementById('checkMorata').checked) participantes.push('Morata');
 
             // Validaciones
-            if (!fecha) {
-                alert("Por favor, selecciona una fecha.");
+            if (!nombreGasto) {
+                alert("Por favor, introduce el nombre del gasto.");
                 return;
             }
 
@@ -135,9 +176,10 @@
             }
 
             // Añadir el gasto a la lista de gastos
-            gastos.push({ fecha, participantes, totalGasto, pagador });
+            gastos.push({ nombreGasto, fecha, participantes, totalGasto, pagador });
 
             // Limpiar los campos después de añadir el gasto
+            document.getElementById('nombreGasto').value = '';
             document.getElementById('gastoTotal').value = '';
             document.getElementById('fechaGasto').value = '';
             document.getElementById('checkSk').checked = false;
@@ -146,6 +188,7 @@
 
             // Actualizar la tabla de gastos
             actualizarTabla();
+            guardarGastos(); // Guarda los gastos en JSONBin
         }
 
         function actualizarTabla() {
@@ -155,6 +198,7 @@
             gastos.forEach(gasto => {
                 const fila = document.createElement('tr');
                 fila.innerHTML = `
+                    <td>${gasto.nombreGasto}</td>
                     <td>${gasto.fecha}</td>
                     <td>${gasto.participantes.join(', ')}</td>
                     <td>€${gasto.totalGasto.toFixed(2)}</td>
@@ -208,8 +252,11 @@
 
             resultadoDiv.innerHTML = mensajes || '<p>Todos han pagado equitativamente, no se deben dinero.</p>';
         }
+
+        // Cargar los gastos al iniciar
+        window.onload = cargarGastos;
+
     </script>
 
 </body>
 </html>
-
